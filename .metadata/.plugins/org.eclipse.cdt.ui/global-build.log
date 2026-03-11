@@ -1,0 +1,14 @@
+17:39:56 **** Incremental Build of configuration Debug for project tdse-tp0_01-stm32_project1 ****
+make -j16 all 
+arm-none-eabi-size  tdse-tp0_01-stm32_project1.elf 
+   text	   data	    bss	    dec	    hex	filename
+   8612	     12	   1644	  10268	   281c	tdse-tp0_01-stm32_project1.elf
+Finished building: default.size.stdout
+ 
+17:40:10 **** Incremental Build of configuration Debug for project tdse-tp0_01-stm32_project1 ****
+make -j16 all 
+arm-none-eabi-size  tdse-tp0_01-stm32_project1.elf 
+   text	   data	    bss	    dec	    hex	filename
+   8612	     12	   1644	  10268	   281c	tdse-tp0_01-stm32_project1.elf
+Finished building: default.size.stdout
+ 

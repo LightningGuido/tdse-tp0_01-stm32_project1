@@ -1,0 +1,40 @@
+Análisis del Código Fuente
+El código proporcionado forma la estructura clásica de un proyecto generado por STM32CubeMX o STM32CubeIDE. Aquí te explico la función de cada archivo:
+•	startup_stm32f446retx.s: Este es el archivo de inicio escrito en lenguaje ensamblador. Es el primer código que se ejecuta cuando el microcontrolador se enciende o se reinicia. Sus tareas principales son:
+o	Establecer el puntero de pila (_estack) en la memoria RAM.
+o	Llamar a la función SystemInit (que típicamente configura el sistema de reloj básico).
+o	Copiar los datos inicializados (sección .data) desde la memoria Flash a la memoria RAM y rellenar con ceros la sección .bss.
+o	Finalmente, saltar a la función main() de tu aplicación en C.
+o	También define la "Vector Table" (tabla de vectores), que contiene las direcciones de memoria de todas las rutinas de interrupción (ISRs).
+•	main.c: Es el cuerpo principal del programa.
+o	Inicia llamando a HAL_Init(), lo cual resetea los periféricos, inicializa la interfaz de la memoria Flash y configura el temporizador SysTick.
+o	Llama a SystemClock_Config() para configurar las frecuencias de reloj del núcleo y los buses.
+o	Inicializa los puertos GPIO (MX_GPIO_Init()) y el puerto serie (MX_USART2_UART_Init()).
+o	Entra en un bucle infinito (while (1)) donde alterna el estado de un pin (LD2_Pin, probablemente un LED) y genera una pausa de 500 milisegundos usando HAL_Delay(500).
+•	stm32f4xx_it.c: Contiene las rutinas de servicio de interrupción (ISR - Interrupt Service Routines).
+o	Aquí se manejan las excepciones del procesador Cortex-M4 (como HardFault_Handler o MemManage_Handler).
+o	Una de las funciones más importantes aquí es SysTick_Handler(), la cual es llamada cada vez que el temporizador SysTick genera una interrupción. Esta función llama a HAL_IncTick(), lo que incrementa una variable global que el microcontrolador usa para medir el paso del tiempo (fundamental para que HAL_Delay funcione).
+________________________________________
+Evolución de SysTick y SystemCoreClock
+El SystemCoreClock es la frecuencia a la que opera el núcleo del procesador (HCLK), y el SysTick es un temporizador del sistema que, por defecto en la capa HAL de STM32, se configura para interrumpir cada 1 milisegundo (1 kHz).
+Así evolucionan desde el inicio hasta el bucle principal:
+1. Al momento del Reset (Reset_Handler):
+•	El microcontrolador arranca usando su oscilador interno de alta velocidad (HSI), que en la familia STM32F4 funciona a 16 MHz.
+•	SystemCoreClock: 16 MHz.
+•	SysTick: Aún está deshabilitado.
+2. Al entrar a main() y ejecutar HAL_Init():
+•	La función HAL_Init() activa el SysTick por primera vez para tener una base de tiempo. Como el reloj del sistema sigue siendo el HSI básico, configura el SysTick basándose en esos 16 MHz.
+•	SystemCoreClock: Sigue en 16 MHz.
+•	SysTick: Comienza a generar interrupciones a una frecuencia de 1 kHz (cada 1 ms). Su valor de recarga interno se calcula como $(16,000,000 / 1000) - 1$.
+3. Al ejecutar SystemClock_Config():
+•	Esta función toma el reloj interno HSI (16 MHz) y enciende el bucle de bloqueo de fase (PLL) para multiplicar la frecuencia.
+•	Los parámetros definidos en el código son: Divisor M = 16, Multiplicador N = 336, y Divisor principal P = 4 (RCC_PLLP_DIV4).
+•	Cálculo del reloj resultante (SYSCLK): $f_{SYSCLK} = \left(\frac{16\text{ MHz}}{16}\right) \times \frac{336}{4} = \mathbf{84\text{ MHz}}$.
+•	La función HAL_RCC_ClockConfig() (llamada internamente) actualiza el valor de SystemCoreClock a 84 MHz y reconfigura automáticamente el SysTick para que siga interrumpiendo exactamente cada 1 ms bajo la nueva velocidad.
+•	SystemCoreClock: Cambia a 84 MHz.
+•	SysTick: Se mantiene a una frecuencia de interrupción de 1 kHz, pero su registro de recarga cambia a $(84,000,000 / 1000) - 1$.
+4. Al llegar al bucle principal (while (1)):
+•	Toda la inicialización está completa.
+•	SystemCoreClock: Estable en 84 MHz.
+•	SysTick: Interrumpiendo a 1 kHz, lo que permite que el HAL_Delay(500) que se encuentra en el bucle dure exactamente medio segundo real.
+
